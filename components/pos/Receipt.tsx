@@ -28,7 +28,7 @@ export const Receipt = ({ transaction }: ReceiptProps) => {
     };
 
     return (
-        <div id="printable-receipt" className="hidden print:block w-[58mm] p-2 font-mono text-[10px] leading-tight text-black bg-white absolute top-0 left-0 z-[9999]">
+        <div id="printable-receipt" className="hidden print:block w-[58mm] p-2 font-mono text-[10px] leading-tight text-black bg-white absolute top-0 left-0 z-9999">
             <div className="text-center mb-4">
                 <h1 className="font-bold text-sm uppercase">Es Teh Indonesia</h1>
                 <p>Franchise Store #123</p>

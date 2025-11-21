@@ -17,7 +17,7 @@ export default function LoginPage() {
                         <CupSoda size={32} />
                     </div>
                     <h1 className="text-3xl font-bold text-secondary-900 tracking-tight">Es Teh POS</h1>
-                    <p className="text-secondary-500">Sign in to your account</p>
+                    <p className="text-secondary-500">Masuk ke akun Anda</p>
                 </div>
 
                 <form action={async (formData) => {
@@ -36,30 +36,30 @@ export default function LoginPage() {
                         });
 
                         if (res?.error) {
-                            setError("Invalid credentials");
+                            setError("Nama pengguna atau kata sandi salah");
                             setLoading(false);
                         } else {
                             router.refresh();
                             router.push("/pos");
                         }
                     } catch (err) {
-                        setError("An error occurred");
+                        setError("Terjadi kesalahan");
                         setLoading(false);
                     }
                 }} className="space-y-6">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-secondary-700">Username</label>
+                        <label className="text-sm font-medium text-secondary-700">Nama Pengguna</label>
                         <input
                             name="username"
                             type="text"
                             required
                             className="w-full px-4 py-3 rounded-xl border border-secondary-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all bg-secondary-50/50"
-                            placeholder="Enter your username"
+                            placeholder="Masukkan nama pengguna"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-secondary-700">Password</label>
+                        <label className="text-sm font-medium text-secondary-700">Kata Sandi</label>
                         <input
                             name="password"
                             type="password"
@@ -80,7 +80,7 @@ export default function LoginPage() {
                         disabled={loading}
                         className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
                     >
-                        {loading ? <Loader2 className="animate-spin" /> : "Sign In"}
+                        {loading ? <Loader2 className="animate-spin" /> : "Masuk"}
                     </button>
                 </form>
 

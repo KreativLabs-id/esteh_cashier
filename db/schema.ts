@@ -5,6 +5,7 @@ export const roleEnum = pgEnum("role", ["admin", "cashier"]);
 export const users = pgTable("users", {
     id: serial("id").primaryKey(),
     username: text("username").notNull().unique(),
+    name: text("name").notNull(),
     passwordHash: text("password_hash").notNull(),
     role: roleEnum("role").notNull().default("cashier"),
     createdAt: timestamp("created_at").defaultNow(),

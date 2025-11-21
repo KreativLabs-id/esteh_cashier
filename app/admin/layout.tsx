@@ -9,9 +9,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const pathname = usePathname();
 
     const navItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
-        { icon: ShoppingBag, label: 'Products', href: '/admin/products' },
-        { icon: Users, label: 'Staff', href: '/admin/users' },
+        { icon: LayoutDashboard, label: 'Dasbor', href: '/admin/dashboard' },
+        { icon: ShoppingBag, label: 'Produk', href: '/admin/products' },
+        { icon: Users, label: 'Staf', href: '/admin/users' },
     ];
 
     return (

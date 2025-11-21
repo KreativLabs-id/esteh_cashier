@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { mockProducts, categories } from '@/lib/mock-data';
-import { Search, ShoppingCart, Trash2, Plus, Minus, Receipt as ReceiptIcon, History, X, Printer } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, Receipt as ReceiptIcon, History, X, Printer, LogOut } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Receipt } from '@/components/pos/Receipt';
+import { signOut, useSession } from 'next-auth/react';
+
+const categories = ["All", "Classic Series", "Fruit Series", "Milk Series"];
 
 interface Product {
     id: number;
@@ -35,6 +37,7 @@ interface Transaction {
 }
 
 export default function POSPage() {
+    const { data: session } = useSession();
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -46,6 +49,9 @@ export default function POSPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showCart, setShowCart] = useState(false); // For mobile cart toggle
+    
+    const cashierName = session?.user?.name || "Kasir";
 
     // Fetch products and transactions on mount
     useEffect(() => {
@@ -56,9 +62,6 @@ export default function POSPage() {
                 if (productsRes.ok) {
                     const productsData = await productsRes.json();
                     setProducts(productsData);
-                } else {
-                    // Fallback to mock data if API fails
-                    setProducts(mockProducts as any);
                 }
 
                 // Fetch transactions
@@ -67,11 +70,11 @@ export default function POSPage() {
                     const transactionsData = await transactionsRes.json();
                     // Transform database transactions to match UI format
                     const formattedTransactions = transactionsData.map((trx: any) => ({
-                        id: `TRX-${trx.id.toString().padStart(6, '0')}`,
-                        cashier: 'John Doe', // TODO: Get from cashier relation
+                        id: `TRX-${trx.id.toString().padStart(3, '0')}`,
+                        cashier: 'John Doe',
                         date: new Date(trx.createdAt).toLocaleString('id-ID'),
                         items: trx.items.map((item: any) => ({
-                            name: `Product ${item.productId}`, // TODO: Join with products
+                            name: item.productName || 'Unknown Product',
                             quantity: item.quantity,
                             price: item.priceAtSnapshot,
                         })),
@@ -84,8 +87,6 @@ export default function POSPage() {
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
-                // Fallback to mock data
-                setProducts(mockProducts as any);
             } finally {
                 setLoading(false);
             }
@@ -130,7 +131,7 @@ export default function POSPage() {
     const handleCheckout = async () => {
         const transaction: Transaction = {
             id: `TRX-${Date.now().toString().slice(-6)}`,
-            cashier: "John Doe",
+            cashier: cashierName,
             date: new Date().toLocaleString('id-ID', {
                 year: 'numeric',
                 month: '2-digit',
@@ -284,7 +285,7 @@ export default function POSPage() {
     };
 
     return (
-        <div className="flex h-screen bg-secondary-50 overflow-hidden font-sans" suppressHydrationWarning>
+        <div className="flex h-screen bg-secondary-50 overflow-hidden font-sans relative" suppressHydrationWarning>
             {/* Print Styles */}
             {/* Print Styles moved to globals.css */}
 
@@ -294,21 +295,21 @@ export default function POSPage() {
             {/* Left Side: Product Grid */}
             <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50">
                 {/* Header */}
-                <header className="bg-white px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                    <div className="flex items-center gap-6">
-                        <h1 className="text-xl font-bold text-gray-800">Es Teh POS</h1>
-                        <div className="relative">
+                <header className="bg-white px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex justify-between items-center">
+                    <div className="flex items-center gap-2 sm:gap-6 flex-1">
+                        <h1 className="text-lg sm:text-xl font-bold text-gray-800">Es Teh POS</h1>
+                        <div className="relative flex-1 sm:flex-initial">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                             <input
                                 type="text"
                                 placeholder="Cari minuman..."
-                                className="pl-10 pr-4 py-2 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none w-64 text-sm"
+                                className="pl-10 pr-4 py-2 rounded-lg bg-gray-50 border border-gray-200 focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none w-full sm:w-64 text-sm"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
                     </div>
-                    <div className="flex gap-3 items-center">
+                    <div className="flex gap-2 sm:gap-3 items-center">
                         <button
                             onClick={() => setShowHistory(true)}
                             className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
@@ -316,21 +317,32 @@ export default function POSPage() {
                         >
                             <History size={20} />
                         </button>
-                        <div className="text-xs text-gray-600 px-3 py-1.5 bg-gray-100 rounded-lg">
-                            Kasir: John Doe
+                        <div className="hidden sm:block text-xs text-gray-600 px-3 py-1.5 bg-gray-100 rounded-lg">
+                            Kasir: {cashierName}
                         </div>
+                        <button
+                            onClick={async () => {
+                                if (confirm('Apakah Anda yakin ingin logout?')) {
+                                    await signOut({ callbackUrl: '/login' });
+                                }
+                            }}
+                            className="p-2 rounded-lg hover:bg-red-100 text-red-600 transition-colors"
+                            title="Logout"
+                        >
+                            <LogOut size={20} />
+                        </button>
                     </div>
                 </header>
 
                 {/* Categories */}
-                <div className="px-6 py-3 bg-white border-b border-gray-200">
-                    <div className="flex gap-2">
+                <div className="px-3 sm:px-6 py-3 bg-white border-b border-gray-200">
+                    <div className="flex gap-2 overflow-x-auto scrollbar-hide">
                         {categories.map(cat => (
                             <button
                                 key={cat}
                                 onClick={() => setSelectedCategory(cat)}
                                 className={clsx(
-                                    "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
+                                    "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
                                     selectedCategory === cat
                                         ? "bg-primary-500 text-white"
                                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -344,21 +356,21 @@ export default function POSPage() {
 
 
                 {/* Grid */}
-                <div className="flex-1 overflow-y-auto p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start">
+                <div className="flex-1 overflow-y-auto p-3 sm:p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 content-start pb-24 lg:pb-6">
                     {filteredProducts.map(product => (
                         <div
                             key={product.id}
                             onClick={() => addToCart(product)}
-                            className="bg-white rounded-xl p-3 border border-gray-200 hover:border-primary-400 hover:shadow-md transition-all cursor-pointer active:scale-95 group"
+                            className="bg-white rounded-xl p-2 sm:p-3 border border-gray-200 hover:border-primary-400 hover:shadow-md transition-all cursor-pointer active:scale-95 group"
                         >
                             <div className="aspect-square rounded-lg bg-gray-100 mb-2 overflow-hidden relative">
                                 <img src={product.imageUrl || ''} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                <div className="absolute bottom-2 right-2 bg-white px-2 py-0.5 rounded-md text-xs font-semibold text-primary-600 shadow-sm">
+                                <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 bg-white px-1.5 sm:px-2 py-0.5 rounded-md text-xs font-semibold text-primary-600 shadow-sm">
                                     Rp {product.price.toLocaleString()}
                                 </div>
                             </div>
-                            <h3 className="font-semibold text-sm text-gray-800 truncate">{product.name}</h3>
-                            <p className="text-xs text-gray-500">{product.category}</p>
+                            <h3 className="font-semibold text-xs sm:text-sm text-gray-800 truncate">{product.name}</h3>
+                            <p className="text-xs text-gray-500 hidden sm:block">{product.category}</p>
                         </div>
                     ))}
                 </div>
@@ -366,12 +378,21 @@ export default function POSPage() {
 
 
             {/* Right Side: Cart */}
-            <div className="w-96 bg-white flex flex-col h-full border-l border-gray-200">
-                <div className="px-6 py-4 border-b border-gray-200">
+            <div className={clsx(
+                "fixed lg:relative inset-0 lg:inset-auto lg:w-96 bg-white flex flex-col h-full border-l border-gray-200 z-40 transition-transform duration-300",
+                showCart ? "translate-x-0" : "translate-x-full lg:translate-x-0"
+            )}>
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                         <ShoppingCart size={20} className="text-primary-600" />
                         Pesanan Saat Ini
                     </h2>
+                    <button
+                        onClick={() => setShowCart(false)}
+                        className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+                    >
+                        <X size={20} />
+                    </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -384,8 +405,8 @@ export default function POSPage() {
                         </div>
                     ) : (
                         cart.map(item => (
-                            <div key={item.product.id} className="flex gap-3 items-center bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                <div className="w-14 h-14 bg-gray-200 rounded-md overflow-hidden flex-shrink-0">
+                            <div key={item.product.id} className="flex gap-2 sm:gap-3 items-center bg-gray-50 p-2 sm:p-3 rounded-lg border border-gray-200">
+                                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-200 rounded-md overflow-hidden shrink-0">
                                     <img src={item.product.imageUrl || ''} alt={item.product.name} className="w-full h-full object-cover" />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -521,15 +542,28 @@ export default function POSPage() {
                     >
                         Checkout
                     </button>
+                    
+                    {/* Logout Button - Mobile Only */}
+                    <button
+                        onClick={async () => {
+                            if (confirm('Apakah Anda yakin ingin logout?')) {
+                                await signOut({ callbackUrl: '/login' });
+                            }
+                        }}
+                        className="lg:hidden w-full border border-red-200 text-red-600 py-2 rounded-lg font-medium hover:bg-red-50 transition-colors text-sm flex items-center justify-center gap-2"
+                    >
+                        <LogOut size={18} />
+                        Logout
+                    </button>
                 </div>
             </div>
 
             {/* Receipt Modal */}
             {showReceipt && lastTransaction && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
                     <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-                            <h2 className="text-lg font-semibold text-gray-800">Struk Pembayaran</h2>
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
+                            <h2 className="text-base sm:text-lg font-semibold text-gray-800">Struk Pembayaran</h2>
                             <button
                                 onClick={() => setShowReceipt(false)}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -538,7 +572,7 @@ export default function POSPage() {
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-4">
+                        <div className="p-4 sm:p-6 space-y-4">
                             {/* Receipt Details */}
                             <div className="text-center space-y-1">
                                 <h3 className="font-bold text-xl">ES TEH INDONESIA</h3>
@@ -683,6 +717,27 @@ export default function POSPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Floating Cart Button for Mobile/Tablet */}
+            <button
+                onClick={() => setShowCart(true)}
+                className="lg:hidden fixed bottom-6 right-6 w-16 h-16 bg-primary-500 text-white rounded-full shadow-lg flex items-center justify-center z-30 hover:bg-primary-600 active:scale-95 transition-all"
+            >
+                <ShoppingCart size={24} />
+                {cart.length > 0 && (
+                    <span className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                        {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                    </span>
+                )}
+            </button>
+
+            {/* Overlay for mobile cart */}
+            {showCart && (
+                <div
+                    onClick={() => setShowCart(false)}
+                    className="lg:hidden fixed inset-0 bg-black/50 z-30"
+                />
             )}
         </div>
     );

@@ -1,26 +1,59 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary-50: #fff8e1;
+  --color-primary-100: #ffecb3;
+  --color-primary-200: #ffe082;
+  --color-primary-300: #ffd54f;
+  --color-primary-400: #ffca28;
+  --color-primary-500: #ffc107;
+  --color-primary-600: #ffb300;
+  --color-primary-700: #ffa000;
+  --color-primary-800: #ff8f00;
+  --color-primary-900: #ff6f00;
+  --color-primary: #ffc107;
+
+  --color-secondary-50: #efebe9;
+  --color-secondary-100: #d7ccc8;
+  --color-secondary-200: #bcaaa4;
+  --color-secondary-300: #a1887f;
+  --color-secondary-400: #8d6e63;
+  --color-secondary-500: #795548;
+  --color-secondary-600: #6d4c41;
+  --color-secondary-700: #5d4037;
+  --color-secondary-800: #4e342e;
+  --color-secondary-900: #3e2723;
+  --color-secondary: #795548;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 255, 255, 255;
+  --background-end-rgb: 255, 255, 255;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-start-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-receipt, #printable-receipt * {
+    visibility: visible;
+  }
+  #printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 58mm;
+  }
 }

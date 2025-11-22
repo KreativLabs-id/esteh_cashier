@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, X } from 'lucide-react';
 import { clsx } from 'clsx';
-import Image from 'next/image';
 
 interface Product {
     id: number;
@@ -58,35 +57,39 @@ export default function ProductsPage() {
         };
 
         try {
+            let response;
             if (editingProduct) {
                 // Update existing product
-                const response = await fetch(`/api/products/${editingProduct.id}`, {
+                console.log('Updating product:', editingProduct.id, productData);
+                response = await fetch(`/api/products/${editingProduct.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(productData)
                 });
-                
-                if (response.ok) {
-                    alert('Produk berhasil diupdate!');
-                }
             } else {
                 // Create new product
-                const response = await fetch('/api/products', {
+                console.log('Creating new product:', productData);
+                response = await fetch('/api/products', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(productData)
                 });
-                
-                if (response.ok) {
-                    alert('Produk berhasil ditambahkan!');
-                }
             }
             
-            fetchProducts();
-            closeModal();
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Product saved successfully:', result);
+                alert(editingProduct ? 'Produk berhasil diupdate!' : 'Produk berhasil ditambahkan!');
+                await fetchProducts(); // Refresh the list
+                closeModal();
+            } else {
+                const error = await response.json();
+                console.error('Error response:', error);
+                alert(`Gagal menyimpan produk: ${error.error || 'Unknown error'}`);
+            }
         } catch (error) {
             console.error('Error saving product:', error);
-            alert('Gagal menyimpan produk!');
+            alert('Gagal menyimpan produk! Periksa koneksi Anda.');
         }
     };
 
@@ -94,17 +97,23 @@ export default function ProductsPage() {
         if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) return;
 
         try {
+            console.log('Deleting product:', id);
             const response = await fetch(`/api/products/${id}`, {
                 method: 'DELETE'
             });
             
             if (response.ok) {
+                console.log('Product deleted successfully');
                 alert('Produk berhasil dihapus!');
-                fetchProducts();
+                await fetchProducts(); // Refresh the list
+            } else {
+                const error = await response.json();
+                console.error('Error response:', error);
+                alert(`Gagal menghapus produk: ${error.error || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Error deleting product:', error);
-            alert('Gagal menghapus produk!');
+            alert('Gagal menghapus produk! Periksa koneksi Anda.');
         }
     };
 
@@ -207,14 +216,16 @@ export default function ProductsPage() {
                                     <tr key={product.id} className="hover:bg-secondary-25">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden shrink-0 relative">
-                                                    {product.imageUrl && (
-                                                        <Image
+                                                <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                                                    {product.imageUrl ? (
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img
                                                             src={product.imageUrl}
                                                             alt={product.name}
-                                                            fill
-                                                            className="object-cover"
+                                                            className="w-full h-full object-cover"
                                                         />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No img</div>
                                                     )}
                                                 </div>
                                                 <span className="font-medium text-secondary-900">{product.name}</span>

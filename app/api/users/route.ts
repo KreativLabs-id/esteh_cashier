@@ -28,7 +28,10 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { username, name, password, role } = body;
 
+        console.log('📝 Creating new user:', { username, name, role });
+
         if (!username || !name || !password || !role) {
+            console.error('❌ Missing required fields');
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -39,6 +42,7 @@ export async function POST(request: NextRequest) {
             .limit(1);
 
         if (existingUser.length > 0) {
+            console.error('❌ Username already exists:', username);
             return NextResponse.json({ error: 'Username already exists' }, { status: 400 });
         }
 
@@ -61,9 +65,10 @@ export async function POST(request: NextRequest) {
                 createdAt: users.createdAt
             });
 
-        return NextResponse.json(newUser);
+        console.log('✅ User created successfully:', newUser);
+        return NextResponse.json(newUser, { status: 201 });
     } catch (error) {
-        console.error('Error creating user:', error);
+        console.error('❌ Error creating user:', error);
         return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
     }
 }

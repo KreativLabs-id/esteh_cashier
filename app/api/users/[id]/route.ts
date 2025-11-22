@@ -15,7 +15,10 @@ export async function PUT(
         const body = await request.json();
         const { username, name, password, role } = body;
 
+        console.log('📝 Updating user:', id, { username, name, role, hasPassword: !!password });
+
         if (!username || !name || !role) {
+            console.error('❌ Missing required fields');
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -42,9 +45,15 @@ export async function PUT(
                 createdAt: users.createdAt
             });
 
+        if (!updatedUser) {
+            console.error('❌ User not found:', id);
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        console.log('✅ User updated successfully:', updatedUser);
         return NextResponse.json(updatedUser);
     } catch (error) {
-        console.error('Error updating user:', error);
+        console.error('❌ Error updating user:', error);
         return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
     }
 }
@@ -58,13 +67,22 @@ export async function DELETE(
         const { id: idStr } = await params;
         const id = parseInt(idStr);
 
-        await db
-            .delete(users)
-            .where(eq(users.id, id));
+        console.log('🗑️ Deleting user:', id);
 
-        return NextResponse.json({ success: true });
+        const deleted = await db
+            .delete(users)
+            .where(eq(users.id, id))
+            .returning();
+
+        if (!deleted || deleted.length === 0) {
+            console.error('❌ User not found:', id);
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        console.log('✅ User deleted successfully:', id);
+        return NextResponse.json({ success: true, message: 'User deleted successfully' });
     } catch (error) {
-        console.error('Error deleting user:', error);
+        console.error('❌ Error deleting user:', error);
         return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
     }
 }

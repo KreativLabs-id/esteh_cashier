@@ -46,6 +46,7 @@ export default function UsersPage() {
         e.preventDefault();
         
         try {
+            let response;
             if (editingUser) {
                 // Update existing user
                 const updateData: Record<string, string> = {
@@ -59,15 +60,12 @@ export default function UsersPage() {
                     updateData.password = formData.password;
                 }
                 
-                const response = await fetch(`/api/users/${editingUser.id}`, {
+                console.log('Updating user:', editingUser.id, updateData);
+                response = await fetch(`/api/users/${editingUser.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updateData)
                 });
-                
-                if (response.ok) {
-                    alert('User berhasil diupdate!');
-                }
             } else {
                 // Create new user
                 if (!formData.password) {
@@ -75,26 +73,28 @@ export default function UsersPage() {
                     return;
                 }
                 
-                const response = await fetch('/api/users', {
+                console.log('Creating new user:', formData);
+                response = await fetch('/api/users', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
-                
-                if (response.ok) {
-                    alert('User berhasil ditambahkan!');
-                } else {
-                    const error = await response.json();
-                    alert(error.error || 'Gagal menambahkan user!');
-                    return;
-                }
             }
             
-            fetchUsers();
-            closeModal();
+            if (response.ok) {
+                const result = await response.json();
+                console.log('User saved successfully:', result);
+                alert(editingUser ? 'User berhasil diupdate!' : 'User berhasil ditambahkan!');
+                await fetchUsers();
+                closeModal();
+            } else {
+                const error = await response.json();
+                console.error('Error response:', error);
+                alert(error.error || 'Gagal menyimpan user!');
+            }
         } catch (error) {
             console.error('Error saving user:', error);
-            alert('Gagal menyimpan user!');
+            alert('Gagal menyimpan user! Periksa koneksi Anda.');
         }
     };
 
@@ -102,17 +102,23 @@ export default function UsersPage() {
         if (!confirm('Apakah Anda yakin ingin menghapus user ini?')) return;
 
         try {
+            console.log('Deleting user:', id);
             const response = await fetch(`/api/users/${id}`, {
                 method: 'DELETE'
             });
             
             if (response.ok) {
+                console.log('User deleted successfully');
                 alert('User berhasil dihapus!');
-                fetchUsers();
+                await fetchUsers();
+            } else {
+                const error = await response.json();
+                console.error('Error response:', error);
+                alert(error.error || 'Gagal menghapus user!');
             }
         } catch (error) {
             console.error('Error deleting user:', error);
-            alert('Gagal menghapus user!');
+            alert('Gagal menghapus user! Periksa koneksi Anda.');
         }
     };
 

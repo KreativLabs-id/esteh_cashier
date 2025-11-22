@@ -38,7 +38,7 @@ interface Transaction {
 }
 
 export default function POSPage() {
-    const { data: session } = useSession();
+    const { data: session, update: updateSession } = useSession();
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -56,6 +56,15 @@ export default function POSPage() {
     const [showLogoutModal, setShowLogoutModal] = useState(false); // Logout confirmation modal
 
     const cashierName = session?.user?.name || "Kasir";
+
+    // Refresh session to get updated user name
+    useEffect(() => {
+        const refreshSession = setInterval(() => {
+            updateSession();
+        }, 30000); // Refresh every 30 seconds
+
+        return () => clearInterval(refreshSession);
+    }, [updateSession]);
 
     // Fetch products and transactions on mount
     useEffect(() => {
@@ -97,6 +106,16 @@ export default function POSPage() {
         };
 
         fetchData();
+
+        // Auto refresh products every 10 seconds
+        const intervalId = setInterval(() => {
+            fetch('/api/products')
+                .then(res => res.json())
+                .then(data => setProducts(data))
+                .catch(err => console.error('Error refreshing products:', err));
+        }, 10000);
+
+        return () => clearInterval(intervalId);
     }, []);
 
     const filteredProducts = products.filter(p => {
@@ -213,7 +232,10 @@ export default function POSPage() {
                 {/* Header */}
                 <header className="bg-white px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex justify-between items-center">
                     <div className="flex items-center gap-2 sm:gap-6 flex-1">
-                        <h1 className="text-lg sm:text-xl font-bold text-gray-800">Es Teh POS</h1>
+                        <div className="flex items-center gap-2">
+                            <img src="/esteh.png" alt="Es Teh Indonesia" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
+                            <h1 className="text-lg sm:text-xl font-bold text-gray-800">Es Teh POS</h1>
+                        </div>
                         <div className="relative flex-1 sm:flex-initial">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                             <input

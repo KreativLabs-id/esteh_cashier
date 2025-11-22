@@ -14,7 +14,10 @@ export async function PUT(
         const body = await request.json();
         const { name, price, category, imageUrl, isActive } = body;
 
+        console.log('📝 Updating product:', id, { name, price, category, imageUrl, isActive });
+
         if (!name || !price || !category) {
+            console.error('❌ Missing required fields');
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -30,9 +33,15 @@ export async function PUT(
             .where(eq(products.id, id))
             .returning();
 
+        if (!updatedProduct) {
+            console.error('❌ Product not found:', id);
+            return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+        }
+
+        console.log('✅ Product updated successfully:', updatedProduct);
         return NextResponse.json(updatedProduct);
     } catch (error) {
-        console.error('Error updating product:', error);
+        console.error('❌ Error updating product:', error);
         return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
     }
 }
@@ -46,13 +55,22 @@ export async function DELETE(
         const { id: idStr } = await params;
         const id = parseInt(idStr);
 
-        await db
-            .delete(products)
-            .where(eq(products.id, id));
+        console.log('🗑️ Deleting product:', id);
 
-        return NextResponse.json({ success: true });
+        const deleted = await db
+            .delete(products)
+            .where(eq(products.id, id))
+            .returning();
+
+        if (!deleted || deleted.length === 0) {
+            console.error('❌ Product not found:', id);
+            return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+        }
+
+        console.log('✅ Product deleted successfully:', id);
+        return NextResponse.json({ success: true, message: 'Product deleted successfully' });
     } catch (error) {
-        console.error('Error deleting product:', error);
+        console.error('❌ Error deleting product:', error);
         return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
     }
 }

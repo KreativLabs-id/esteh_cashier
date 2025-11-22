@@ -34,7 +34,10 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { name, price, category, imageUrl, isActive } = body;
 
+        console.log('📝 Creating new product:', { name, price, category, imageUrl, isActive });
+
         if (!name || !price || !category) {
+            console.error('❌ Missing required fields');
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -49,9 +52,10 @@ export async function POST(request: NextRequest) {
             })
             .returning();
 
-        return NextResponse.json(newProduct);
+        console.log('✅ Product created successfully:', newProduct);
+        return NextResponse.json(newProduct, { status: 201 });
     } catch (error) {
-        console.error('Error creating product:', error);
+        console.error('❌ Error creating product:', error);
         return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
     }
 }

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, Minus, Receipt as ReceiptIcon, History, X, Printer, LogOut, Loader2, CheckCircle2 } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, Receipt as ReceiptIcon, History, X, Printer, LogOut, Loader2, CheckCircle2, Share2 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { Receipt } from '@/components/pos/Receipt';
 import { useSession } from 'next-auth/react';
 import { handleLogout } from './actions';
+import { printThermalReceipt } from '@/lib/printer-bluetooth';
 
 const categories = ["All", "Classic Series", "Fruit Series", "Milk Series"];
 
@@ -197,105 +197,17 @@ export default function POSPage() {
         if (!lastTransaction) return;
 
         try {
-            // Request Bluetooth device
-            const device = await (navigator as any).bluetooth.requestDevice({
-                filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
-                optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
-            });
-
-            const server = await device.gatt.connect();
-            const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
-            const characteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
-
-            // ESC/POS commands for thermal printer
-            const encoder = new TextEncoder();
-            const ESC = '\\x1B';
-            const GS = '\\x1D';
-
-            let receipt = '';
-
-            // Initialize printer
-            receipt += ESC + '@';
-
-            // Center align
-            receipt += ESC + 'a' + '\\x01';
-
-            // Bold + Large text for header
-            receipt += ESC + 'E' + '\\x01';
-            receipt += GS + '!' + '\\x11';
-            receipt += 'ES TEH INDONESIA\\n';
-            receipt += ESC + 'E' + '\\x00';
-            receipt += GS + '!' + '\\x00';
-
-            receipt += 'Franchise Store #123\\n';
-            receipt += 'Jakarta, Indonesia\\n\\n';
-
-            // Left align
-            receipt += ESC + 'a' + '\\x00';
-
-            receipt += '================================\\n';
-            receipt += `Date    : ${lastTransaction.date}\\n`;
-            receipt += `Cashier : ${lastTransaction.cashier}\\n`;
-            receipt += `Trx ID  : ${lastTransaction.id}\\n`;
-            receipt += '================================\\n\\n';
-
-            // Items
-            lastTransaction.items.forEach(item => {
-                receipt += `${item.name}\\n`;
-                receipt += `  ${item.quantity} x ${item.price.toLocaleString()}`;
-                receipt += ' '.repeat(Math.max(0, 20 - (item.quantity * item.price).toLocaleString().length));
-                receipt += `${(item.quantity * item.price).toLocaleString()}\\n`;
-            });
-
-            receipt += '================================\\n';
-
-            // Bold for totals
-            receipt += ESC + 'E' + '\\x01';
-            receipt += `TOTAL   : Rp ${lastTransaction.total.toLocaleString()}\\n`;
-
-            // Payment method
-            const paymentLabel = lastTransaction.paymentMethod === 'cash' ? 'TUNAI' :
-                lastTransaction.paymentMethod === 'qris' ? 'QRIS' : 'TRANSFER';
-            receipt += `PAYMENT : ${paymentLabel}\\n`;
-
-            // Only show cash and change for cash payments
-            if (lastTransaction.paymentMethod === 'cash') {
-                receipt += `CASH    : Rp ${lastTransaction.cash.toLocaleString()}\\n`;
-                receipt += `CHANGE  : Rp ${lastTransaction.change.toLocaleString()}\\n`;
-            }
-            receipt += ESC + 'E' + '\\x00';
-
-            receipt += '================================\\n\\n';
-
-            // Center align for footer
-            receipt += ESC + 'a' + '\\x01';
-            receipt += 'Thank you for your order!\\n';
-            receipt += 'Follow us @esteh.indonesia\\n';
-            receipt += 'Wifi: EsTeh_Free\\n';
-            receipt += 'Pass: esteh123\\n\\n\\n';
-
-            // Cut paper
-            receipt += GS + 'V' + '\\x00';
-
-            // Send to printer
-            await characteristic.writeValue(encoder.encode(receipt));
-
-            alert('Struk berhasil dicetak!');
+            await printThermalReceipt(lastTransaction);
+            alert('✅ Struk berhasil dicetak via Bluetooth!');
         } catch (error) {
-            console.error('Print error:', error);
-            // Fallback to regular print
-            window.print();
+            const err = error as Error;
+            console.error('Print error:', err);
+            alert(`❌ Gagal mencetak: ${err.message}`);
         }
     };
 
     return (
         <div className="flex h-screen bg-secondary-50 overflow-hidden font-sans relative">
-            {/* Print Styles */}
-            {/* Print Styles moved to globals.css */}
-
-            {/* Hidden Receipt Component */}
-            {lastTransaction && <Receipt transaction={lastTransaction} />}
-
             {/* Left Side: Product Grid */}
             <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50">
                 {/* Header */}
@@ -361,22 +273,64 @@ export default function POSPage() {
 
                 {/* Grid */}
                 <div className="flex-1 overflow-y-auto p-3 sm:p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 content-start pb-24 lg:pb-6">
-                    {filteredProducts.map(product => (
-                        <div
-                            key={product.id}
-                            onClick={() => addToCart(product)}
-                            className="bg-white rounded-xl p-2 sm:p-3 border border-gray-200 hover:border-primary-400 hover:shadow-md transition-all cursor-pointer active:scale-95 group"
-                        >
-                            <div className="aspect-square rounded-lg bg-gray-100 mb-2 overflow-hidden relative">
-                                <img src={product.imageUrl || ''} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 bg-white px-1.5 sm:px-2 py-0.5 rounded-md text-xs font-semibold text-primary-600 shadow-sm">
-                                    Rp {product.price.toLocaleString()}
+                    {filteredProducts.map(product => {
+                        const cartItem = cart.find(item => item.product.id === product.id);
+                        const quantity = cartItem ? cartItem.quantity : 0;
+
+                        return (
+                            <div
+                                key={product.id}
+                                className="bg-white rounded-xl p-2 sm:p-3 border border-gray-200 hover:border-primary-400 hover:shadow-md transition-all group"
+                            >
+                                <div className="aspect-square rounded-lg bg-gray-100 mb-2 overflow-hidden relative">
+                                    <img src={product.imageUrl || ''} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                    <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 bg-white px-1.5 sm:px-2 py-0.5 rounded-md text-xs font-semibold text-primary-600 shadow-sm">
+                                        Rp {product.price.toLocaleString()}
+                                    </div>
                                 </div>
+                                <h3 className="font-semibold text-xs sm:text-sm text-gray-800 truncate">{product.name}</h3>
+                                <p className="text-xs text-gray-500 hidden sm:block mb-2">{product.category}</p>
+                                
+                                {/* Quantity Controls */}
+                                {quantity > 0 ? (
+                                    <div className="flex items-center justify-between gap-1 mt-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                updateQuantity(product.id, -1);
+                                            }}
+                                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-500 hover:bg-red-600 flex items-center justify-center text-white transition-colors active:scale-95"
+                                        >
+                                            <Minus size={14} />
+                                        </button>
+                                        <div className="flex-1 text-center">
+                                            <span className="font-bold text-sm sm:text-base text-gray-800">{quantity}</span>
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                updateQuantity(product.id, 1);
+                                            }}
+                                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary-500 hover:bg-primary-600 flex items-center justify-center text-white transition-colors active:scale-95"
+                                        >
+                                            <Plus size={14} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            addToCart(product);
+                                        }}
+                                        className="w-full mt-2 py-1.5 sm:py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors active:scale-95 flex items-center justify-center gap-1"
+                                    >
+                                        <Plus size={14} />
+                                        Tambah
+                                    </button>
+                                )}
                             </div>
-                            <h3 className="font-semibold text-xs sm:text-sm text-gray-800 truncate">{product.name}</h3>
-                            <p className="text-xs text-gray-500 hidden sm:block">{product.category}</p>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 
@@ -580,7 +534,7 @@ export default function POSPage() {
                         <div className="flex items-center justify-center">
                             <div className="relative">
                                 <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-75"></div>
-                                <div className="relative w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-lg">
+                                <div className="relative w-24 h-24 bg-linear-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-lg">
                                     <CheckCircle2 size={48} className="text-white" strokeWidth={3} />
                                 </div>
                             </div>
@@ -627,25 +581,46 @@ export default function POSPage() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-3">
+                        <div className="space-y-3">
+                            {/* Print Button */}
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await printThermalReceipt(lastTransaction);
+                                        alert('✅ Struk berhasil dicetak via Bluetooth!');
+                                    } catch (error) {
+                                        const err = error as Error;
+                                        alert(`❌ Gagal mencetak: ${err.message}`);
+                                    }
+                                }}
+                                className="w-full px-4 py-3 rounded-xl bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Printer size={20} />
+                                Print Struk
+                            </button>
+
+                            {/* Share to WhatsApp Button */}
                             <button
                                 onClick={() => {
-                                    setShowSuccess(false);
-                                    setShowReceipt(true);
+                                    const message = `*STRUK PEMBAYARAN*\n*ES TEH INDONESIA*\n\nNo. Transaksi: ${lastTransaction.id}\nTanggal: ${lastTransaction.date}\nKasir: ${lastTransaction.cashier}\n\n*PESANAN:*\n${lastTransaction.items.map(item => `${item.quantity}x ${item.name} - Rp ${(item.quantity * item.price).toLocaleString('id-ID')}`).join('\n')}\n\n*TOTAL: Rp ${lastTransaction.total.toLocaleString('id-ID')}*\nMetode: ${lastTransaction.paymentMethod === 'cash' ? 'Tunai' : lastTransaction.paymentMethod === 'qris' ? 'QRIS' : 'Transfer'}${lastTransaction.paymentMethod === 'cash' ? `\nTunai: Rp ${lastTransaction.cash.toLocaleString('id-ID')}\nKembalian: Rp ${lastTransaction.change.toLocaleString('id-ID')}` : ''}\n\nTerima kasih telah berbelanja! 🎉\nFollow us @esteh.indonesia`;
+                                    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+                                    window.open(whatsappUrl, '_blank');
                                 }}
-                                className="flex-1 px-4 py-3 rounded-xl border-2 border-primary-500 text-primary-600 font-semibold hover:bg-primary-50 transition-colors flex items-center justify-center gap-2"
+                                className="w-full px-4 py-3 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                             >
-                                <ReceiptIcon size={20} />
-                                Lihat Struk
+                                <Share2 size={20} />
+                                Share ke WhatsApp
                             </button>
+
+                            {/* Back Button */}
                             <button
                                 onClick={() => {
                                     setShowSuccess(false);
                                     setLastTransaction(null);
                                 }}
-                                className="flex-1 px-4 py-3 rounded-xl bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-colors"
+                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
                             >
-                                Pesanan Baru
+                                Kembali
                             </button>
                         </div>
 
@@ -742,22 +717,13 @@ export default function POSPage() {
                                 <p>Follow us @esteh.indonesia</p>
                             </div>
 
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => window.print()}
-                                    className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <Printer size={18} />
-                                    Print
-                                </button>
-                                <button
-                                    onClick={handlePrintThermal}
-                                    className="flex-1 bg-primary-500 text-white py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <Printer size={18} />
-                                    Print Thermal
-                                </button>
-                            </div>
+                            <button
+                                onClick={handlePrintThermal}
+                                className="w-full bg-primary-500 text-white py-3 rounded-lg font-semibold hover:bg-primary-600 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Printer size={20} />
+                                Cetak Struk Thermal
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -801,13 +767,42 @@ export default function POSPage() {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="space-y-1">
+                                            <div className="space-y-1 mb-3">
                                                 {trx.items.map((item, idx) => (
                                                     <div key={idx} className="flex justify-between text-sm text-gray-600">
                                                         <span>{item.quantity}x {item.name}</span>
                                                         <span>Rp {(item.quantity * item.price).toLocaleString()}</span>
                                                     </div>
                                                 ))}
+                                            </div>
+                                            {/* Action Buttons */}
+                                            <div className="flex gap-2 pt-3 border-t border-gray-200">
+                                                <button
+                                                    onClick={() => {
+                                                        setLastTransaction(trx);
+                                                        setShowHistory(false);
+                                                        setShowReceipt(true);
+                                                    }}
+                                                    className="flex-1 px-3 py-2 rounded-lg bg-white border border-primary-500 text-primary-600 text-sm font-medium hover:bg-primary-50 transition-colors flex items-center justify-center gap-1.5"
+                                                >
+                                                    <ReceiptIcon size={16} />
+                                                    Lihat Struk
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            await printThermalReceipt(trx);
+                                                            alert('✅ Struk berhasil dicetak!');
+                                                        } catch (error) {
+                                                            const err = error as Error;
+                                                            alert(`❌ Gagal mencetak: ${err.message}`);
+                                                        }
+                                                    }}
+                                                    className="flex-1 px-3 py-2 rounded-lg bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors flex items-center justify-center gap-1.5"
+                                                >
+                                                    <Printer size={16} />
+                                                    Print
+                                                </button>
                                             </div>
                                         </div>
                                     ))}

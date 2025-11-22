@@ -20,20 +20,37 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
     providers: [
         Credentials({
             async authorize(credentials) {
+                console.log('🔐 Login attempt with credentials:', { username: credentials?.username });
+
                 const parsedCredentials = z
                     .object({ username: z.string(), password: z.string().min(6) })
                     .safeParse(credentials);
 
-                if (parsedCredentials.success) {
-                    const { username, password } = parsedCredentials.data;
-                    const user = await getUser(username);
-                    if (!user) return null;
-
-                    const passwordsMatch = await bcrypt.compare(password, user.passwordHash);
-                    if (passwordsMatch) return { ...user, id: user.id.toString() };
+                if (!parsedCredentials.success) {
+                    console.log('❌ Validation failed:', parsedCredentials.error);
+                    return null;
                 }
 
-                console.log("Invalid credentials");
+                const { username, password } = parsedCredentials.data;
+                console.log('✅ Credentials validated, fetching user...');
+
+                const user = await getUser(username);
+                if (!user) {
+                    console.log('❌ User not found:', username);
+                    return null;
+                }
+
+                console.log('✅ User found:', { id: user.id, username: user.username, role: user.role });
+
+                const passwordsMatch = await bcrypt.compare(password, user.passwordHash);
+                console.log('🔑 Password match:', passwordsMatch);
+
+                if (passwordsMatch) {
+                    console.log('✅ Login successful for:', username);
+                    return { ...user, id: user.id.toString() };
+                }
+
+                console.log('❌ Invalid password for:', username);
                 return null;
             },
         }),

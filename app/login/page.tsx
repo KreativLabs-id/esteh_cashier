@@ -3,11 +3,27 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CupSoda, Loader2 } from 'lucide-react';
+import { authenticate } from './actions';
 
 export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const router = useRouter();
+
+    const handleSubmit = async (formData: FormData) => {
+        setLoading(true);
+        setError('');
+
+        const result = await authenticate(undefined, formData);
+
+        if (result === 'success') {
+            router.push('/pos');
+            router.refresh();
+        } else {
+            setError(result || 'Nama pengguna atau kata sandi salah');
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-500 to-secondary-700 p-4">
@@ -16,37 +32,11 @@ export default function LoginPage() {
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-100 text-primary-600 mb-4">
                         <CupSoda size={32} />
                     </div>
-                    <h1 className="text-3xl font-bold text-secondary-900 tracking-tight">Es Teh POS</h1>
+                    <h1 className="text-3xl font-bold text-secondary-900 tracking-tight">Es Teh Kasir</h1>
                     <p className="text-secondary-500">Masuk ke akun Anda</p>
                 </div>
 
-                <form action={async (formData) => {
-                    setLoading(true);
-                    setError("");
-                    const username = formData.get("username") as string;
-                    const password = formData.get("password") as string;
-
-                    try {
-                        // Dynamically import signIn to use it in client component event handler
-                        const { signIn } = await import("next-auth/react");
-                        const res = await signIn("credentials", {
-                            username,
-                            password,
-                            redirect: false,
-                        });
-
-                        if (res?.error) {
-                            setError("Nama pengguna atau kata sandi salah");
-                            setLoading(false);
-                        } else {
-                            router.refresh();
-                            router.push("/pos");
-                        }
-                    } catch (err) {
-                        setError("Terjadi kesalahan");
-                        setLoading(false);
-                    }
-                }} className="space-y-6">
+                <form action={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-secondary-700">Nama Pengguna</label>
                         <input
@@ -85,7 +75,7 @@ export default function LoginPage() {
                 </form>
 
                 <div className="text-center text-xs text-secondary-400">
-                    &copy; 2024 Es Teh Franchise. All rights reserved.
+                    &copy; 2025 Es Teh. All rights reserved.
                 </div>
             </div>
         </div>

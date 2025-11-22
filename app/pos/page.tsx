@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, Minus, Receipt as ReceiptIcon, History, X, Printer, LogOut } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, Receipt as ReceiptIcon, History, X, Printer, LogOut, Loader2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Receipt } from '@/components/pos/Receipt';
-import { signOut, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { handleLogout } from './actions';
 
 const categories = ["All", "Classic Series", "Fruit Series", "Milk Series"];
 
@@ -50,7 +51,8 @@ export default function POSPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCart, setShowCart] = useState(false); // For mobile cart toggle
-    
+    const [isLoggingOut, setIsLoggingOut] = useState(false); // Loading state for logout
+
     const cashierName = session?.user?.name || "Kasir";
 
     // Fetch products and transactions on mount
@@ -285,7 +287,7 @@ export default function POSPage() {
     };
 
     return (
-        <div className="flex h-screen bg-secondary-50 overflow-hidden font-sans relative" suppressHydrationWarning>
+        <div className="flex h-screen bg-secondary-50 overflow-hidden font-sans relative">
             {/* Print Styles */}
             {/* Print Styles moved to globals.css */}
 
@@ -323,13 +325,21 @@ export default function POSPage() {
                         <button
                             onClick={async () => {
                                 if (confirm('Apakah Anda yakin ingin logout?')) {
-                                    await signOut({ callbackUrl: '/login' });
+                                    try {
+                                        setIsLoggingOut(true);
+                                        await handleLogout();
+                                    } catch (error) {
+                                        console.error('Logout error:', error);
+                                        setIsLoggingOut(false);
+                                        alert('Gagal logout. Silakan coba lagi.');
+                                    }
                                 }
                             }}
-                            className="p-2 rounded-lg hover:bg-red-100 text-red-600 transition-colors"
+                            disabled={isLoggingOut}
+                            className="p-2 rounded-lg hover:bg-red-100 text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Logout"
                         >
-                            <LogOut size={20} />
+                            {isLoggingOut ? <Loader2 size={20} className="animate-spin" /> : <LogOut size={20} />}
                         </button>
                     </div>
                 </header>
@@ -542,18 +552,35 @@ export default function POSPage() {
                     >
                         Checkout
                     </button>
-                    
+
                     {/* Logout Button - Mobile Only */}
                     <button
                         onClick={async () => {
                             if (confirm('Apakah Anda yakin ingin logout?')) {
-                                await signOut({ callbackUrl: '/login' });
+                                try {
+                                    setIsLoggingOut(true);
+                                    await handleLogout();
+                                } catch (error) {
+                                    console.error('Logout error:', error);
+                                    setIsLoggingOut(false);
+                                    alert('Gagal logout. Silakan coba lagi.');
+                                }
                             }
                         }}
-                        className="lg:hidden w-full border border-red-200 text-red-600 py-2 rounded-lg font-medium hover:bg-red-50 transition-colors text-sm flex items-center justify-center gap-2"
+                        disabled={isLoggingOut}
+                        className="lg:hidden w-full border border-red-200 text-red-600 py-2 rounded-lg font-medium hover:bg-red-50 transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <LogOut size={18} />
-                        Logout
+                        {isLoggingOut ? (
+                            <>
+                                <Loader2 size={18} className="animate-spin" />
+                                Logging out...
+                            </>
+                        ) : (
+                            <>
+                                <LogOut size={18} />
+                                Logout
+                            </>
+                        )}
                     </button>
                 </div>
             </div>

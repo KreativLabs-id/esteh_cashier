@@ -7,10 +7,11 @@ import bcrypt from 'bcryptjs';
 // PUT - Update user
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = parseInt(params.id);
+        const { id: idStr } = await params;
+        const id = parseInt(idStr);
         const body = await request.json();
         const { username, name, password, role } = body;
 
@@ -51,10 +52,11 @@ export async function PUT(
 // DELETE - Delete user
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = parseInt(params.id);
+        const { id: idStr } = await params;
+        const id = parseInt(idStr);
 
         await db
             .delete(users)

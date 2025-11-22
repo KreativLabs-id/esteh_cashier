@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, Minus, Receipt as ReceiptIcon, History, X, Printer, LogOut, Loader2 } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, Receipt as ReceiptIcon, History, X, Printer, LogOut, Loader2, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Receipt } from '@/components/pos/Receipt';
 import { useSession } from 'next-auth/react';
@@ -46,12 +46,14 @@ export default function POSPage() {
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'transfer'>('cash');
     const [showHistory, setShowHistory] = useState(false);
     const [showReceipt, setShowReceipt] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false); // Success modal
     const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCart, setShowCart] = useState(false); // For mobile cart toggle
     const [isLoggingOut, setIsLoggingOut] = useState(false); // Loading state for logout
+    const [showLogoutModal, setShowLogoutModal] = useState(false); // Logout confirmation modal
 
     const cashierName = session?.user?.name || "Kasir";
 
@@ -183,8 +185,8 @@ export default function POSPage() {
         // Add to transaction history
         setTransactions(prev => [transaction, ...prev]);
 
-        // Show receipt modal
-        setShowReceipt(true);
+        // Show success modal instead of receipt
+        setShowSuccess(true);
 
         // Clear cart and payment
         setCart([]);
@@ -323,17 +325,9 @@ export default function POSPage() {
                             Kasir: {cashierName}
                         </div>
                         <button
-                            onClick={async () => {
-                                if (confirm('Apakah Anda yakin ingin logout?')) {
-                                    try {
-                                        setIsLoggingOut(true);
-                                        await handleLogout();
-                                    } catch (error) {
-                                        console.error('Logout error:', error);
-                                        setIsLoggingOut(false);
-                                        alert('Gagal logout. Silakan coba lagi.');
-                                    }
-                                }
+                            onClick={() => {
+                                console.log('🔴 [CLIENT] Logout button clicked');
+                                setShowLogoutModal(true);
                             }}
                             disabled={isLoggingOut}
                             className="p-2 rounded-lg hover:bg-red-100 text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -555,17 +549,9 @@ export default function POSPage() {
 
                     {/* Logout Button - Mobile Only */}
                     <button
-                        onClick={async () => {
-                            if (confirm('Apakah Anda yakin ingin logout?')) {
-                                try {
-                                    setIsLoggingOut(true);
-                                    await handleLogout();
-                                } catch (error) {
-                                    console.error('Logout error:', error);
-                                    setIsLoggingOut(false);
-                                    alert('Gagal logout. Silakan coba lagi.');
-                                }
-                            }
+                        onClick={() => {
+                            console.log('🔴 [CLIENT-MOBILE] Logout button clicked');
+                            setShowLogoutModal(true);
                         }}
                         disabled={isLoggingOut}
                         className="lg:hidden w-full border border-red-200 text-red-600 py-2 rounded-lg font-medium hover:bg-red-50 transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -584,6 +570,92 @@ export default function POSPage() {
                     </button>
                 </div>
             </div>
+
+
+            {/* Success Modal */}
+            {showSuccess && lastTransaction && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-8 space-y-6 shadow-2xl animate-in fade-in zoom-in duration-300">
+                        {/* Success Icon with Animation */}
+                        <div className="flex items-center justify-center">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-75"></div>
+                                <div className="relative w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-lg">
+                                    <CheckCircle2 size={48} className="text-white" strokeWidth={3} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Success Message */}
+                        <div className="text-center space-y-2">
+                            <h2 className="text-2xl font-bold text-gray-800">Transaksi Berhasil!</h2>
+                            <p className="text-gray-600">Pembayaran telah berhasil diproses</p>
+                        </div>
+
+                        {/* Transaction Summary */}
+                        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-600">No. Transaksi</span>
+                                <span className="font-semibold text-gray-800">{lastTransaction.id}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-600">Total Pembayaran</span>
+                                <span className="font-bold text-xl text-green-600">
+                                    Rp {lastTransaction.total.toLocaleString('id-ID')}
+                                </span>
+                            </div>
+                            {lastTransaction.paymentMethod === 'cash' && (
+                                <>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-gray-600">Uang Diterima</span>
+                                        <span className="font-medium">Rp {lastTransaction.cash.toLocaleString('id-ID')}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-gray-600">Kembalian</span>
+                                        <span className="font-medium text-blue-600">Rp {lastTransaction.change.toLocaleString('id-ID')}</span>
+                                    </div>
+                                </>
+                            )}
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-gray-600">Metode Pembayaran</span>
+                                <span className="font-medium">
+                                    {lastTransaction.paymentMethod === 'cash' && '💵 Tunai'}
+                                    {lastTransaction.paymentMethod === 'qris' && '📱 QRIS'}
+                                    {lastTransaction.paymentMethod === 'transfer' && '🏦 Transfer'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowSuccess(false);
+                                    setShowReceipt(true);
+                                }}
+                                className="flex-1 px-4 py-3 rounded-xl border-2 border-primary-500 text-primary-600 font-semibold hover:bg-primary-50 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <ReceiptIcon size={20} />
+                                Lihat Struk
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowSuccess(false);
+                                    setLastTransaction(null);
+                                }}
+                                className="flex-1 px-4 py-3 rounded-xl bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-colors"
+                            >
+                                Pesanan Baru
+                            </button>
+                        </div>
+
+                        {/* Thank You Message */}
+                        <div className="text-center text-sm text-gray-500 border-t border-gray-200 pt-4">
+                            <p>Terima kasih telah berbelanja! 🎉</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Receipt Modal */}
             {showReceipt && lastTransaction && (
@@ -765,6 +837,70 @@ export default function POSPage() {
                     onClick={() => setShowCart(false)}
                     className="lg:hidden fixed inset-0 bg-black/50 z-30"
                 />
+            )}
+
+            {/* Logout Confirmation Modal */}
+            {showLogoutModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mx-auto">
+                            <LogOut size={32} className="text-red-600" />
+                        </div>
+
+                        <div className="text-center space-y-2">
+                            <h3 className="text-xl font-bold text-gray-800">Konfirmasi Logout</h3>
+                            <p className="text-gray-600">
+                                Apakah Anda yakin ingin keluar dari sistem?
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                            <button
+                                onClick={() => {
+                                    console.log('❌ [MODAL] User clicked Cancel');
+                                    setShowLogoutModal(false);
+                                }}
+                                disabled={isLoggingOut}
+                                className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    console.log('✅ [MODAL] User clicked Logout');
+                                    console.log('⏳ [MODAL] Setting loading state...');
+                                    setIsLoggingOut(true);
+                                    console.log('📞 [MODAL] Calling handleLogout()...');
+                                    try {
+                                        await handleLogout();
+                                        console.log('✅ [MODAL] handleLogout() completed');
+                                    } catch (error: any) {
+                                        console.log('🔄 [MODAL] Caught error:', error?.message || error);
+                                        // NEXT_REDIRECT is expected, let it propagate
+                                        if (error?.message?.includes('NEXT_REDIRECT')) {
+                                            console.log('✅ [MODAL] NEXT_REDIRECT detected - this is normal!');
+                                            throw error;
+                                        }
+                                        console.error('❌ [MODAL] Unexpected error:', error);
+                                        setIsLoggingOut(false);
+                                        setShowLogoutModal(false);
+                                    }
+                                }}
+                                disabled={isLoggingOut}
+                                className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isLoggingOut ? (
+                                    <>
+                                        <Loader2 size={20} className="animate-spin" />
+                                        Logging out...
+                                    </>
+                                ) : (
+                                    'Ya, Logout'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

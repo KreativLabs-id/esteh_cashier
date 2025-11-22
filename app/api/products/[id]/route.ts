@@ -6,10 +6,11 @@ import { eq } from 'drizzle-orm';
 // PUT - Update product
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = parseInt(params.id);
+        const { id: idStr } = await params;
+        const id = parseInt(idStr);
         const body = await request.json();
         const { name, price, category, imageUrl, isActive } = body;
 
@@ -39,10 +40,11 @@ export async function PUT(
 // DELETE - Delete product
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = parseInt(params.id);
+        const { id: idStr } = await params;
+        const id = parseInt(idStr);
 
         await db
             .delete(products)

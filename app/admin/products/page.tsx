@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Edit, Trash2, Search, X, Upload, Loader2 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface Product {
@@ -26,6 +26,8 @@ export default function ProductsPage() {
         imageUrl: '',
         isActive: true
     });
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const categories = ['Tea Series', 'Mojito Series', 'Yakult Series', 'Milk Series', 'Signature Series'];
 
@@ -155,6 +157,52 @@ export default function ProductsPage() {
     const filteredProducts = products.filter(product =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Handle image upload to Cloudinary
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Hanya file gambar yang diperbolehkan!');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Ukuran file maksimal 5MB!');
+            return;
+        }
+
+        setUploading(true);
+        try {
+            const formDataUpload = new FormData();
+            formDataUpload.append('file', file);
+
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formDataUpload,
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                setFormData({ ...formData, imageUrl: result.url });
+                alert('Gambar berhasil diupload!');
+            } else {
+                const error = await response.json();
+                alert(`Gagal upload gambar: ${error.error}`);
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('Gagal upload gambar!');
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
 
     return (
         <div className="p-6 sm:p-8 space-y-6">
@@ -337,15 +385,70 @@ export default function ProductsPage() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    URL Gambar
+                                    Gambar Produk
                                 </label>
-                                <input
-                                    type="url"
-                                    value={formData.imageUrl}
-                                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none"
-                                    placeholder="https://images.unsplash.com/..."
-                                />
+                                
+                                {/* Image Preview */}
+                                {formData.imageUrl && (
+                                    <div className="mb-3 relative w-32 h-32 rounded-lg overflow-hidden border border-gray-200">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={formData.imageUrl}
+                                            alt="Preview"
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, imageUrl: '' })}
+                                            className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Upload Button */}
+                                <div className="flex gap-2">
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleImageUpload}
+                                        accept="image/*"
+                                        className="hidden"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploading}
+                                        className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                    >
+                                        {uploading ? (
+                                            <>
+                                                <Loader2 size={16} className="animate-spin" />
+                                                Uploading...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload size={16} />
+                                                Upload Gambar
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {/* Manual URL Input */}
+                                <div className="mt-3">
+                                    <label className="block text-xs text-gray-500 mb-1">
+                                        Atau masukkan URL gambar:
+                                    </label>
+                                    <input
+                                        type="url"
+                                        value={formData.imageUrl}
+                                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none text-sm"
+                                        placeholder="https://res.cloudinary.com/..."
+                                    />
+                                </div>
                             </div>
 
                             <div className="flex items-center gap-3">

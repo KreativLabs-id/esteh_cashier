@@ -1,16 +1,17 @@
 'use client';
 
-import { LayoutDashboard, ShoppingBag, Users, LogOut, CupSoda, FileText, Loader2 } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Users, LogOut, CupSoda, FileText, Loader2, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { handleLogout } from '@/app/pos/actions';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const navItems = [
         { icon: LayoutDashboard, label: 'Dasbor', href: '/admin/dashboard' },
@@ -19,15 +20,57 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         { icon: Users, label: 'Staf', href: '/admin/users' },
     ];
 
+    // Close sidebar when route changes
+    useEffect(() => {
+        setSidebarOpen(false);
+    }, [pathname]);
+
     return (
         <div className="flex h-screen bg-secondary-50 font-sans">
-            {/* Sidebar */}
-            <aside className="w-64 bg-white border-r border-secondary-200 flex flex-col">
-                <div className="p-6 flex items-center gap-3 border-b border-secondary-100">
-                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
-                        <CupSoda size={20} />
+            {/* Mobile Header */}
+            <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-secondary-200 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setSidebarOpen(true)}
+                        className="p-2 hover:bg-gray-100 rounded-lg"
+                    >
+                        <Menu size={24} />
+                    </button>
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
+                            <CupSoda size={16} />
+                        </div>
+                        <span className="font-bold text-secondary-900">Teh Barudak</span>
                     </div>
-                    <span className="text-xl font-bold text-secondary-900">Teh Barudak Admin</span>
+                </div>
+            </div>
+
+            {/* Overlay */}
+            {sidebarOpen && (
+                <div 
+                    className="lg:hidden fixed inset-0 bg-black/50 z-40"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
+            {/* Sidebar */}
+            <aside className={clsx(
+                "fixed lg:relative inset-y-0 left-0 z-50 w-64 bg-white border-r border-secondary-200 flex flex-col transform transition-transform duration-300 ease-in-out",
+                sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+            )}>
+                <div className="p-4 lg:p-6 flex items-center justify-between border-b border-secondary-100">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
+                            <CupSoda size={20} />
+                        </div>
+                        <span className="text-lg lg:text-xl font-bold text-secondary-900">Teh Barudak Admin</span>
+                    </div>
+                    <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+                    >
+                        <X size={20} />
+                    </button>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2">
@@ -64,7 +107,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto">
+            <main className="flex-1 overflow-y-auto pt-14 lg:pt-0">
                 {children}
             </main>
 

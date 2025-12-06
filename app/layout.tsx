@@ -17,11 +17,7 @@ export const metadata: Metadata = {
   title: "Teh Barudak Indonesia - POS System",
   description: "Modern Point of Sale system for Teh Barudak Indonesia franchise",
   icons: {
-    icon: [
-      { url: '/esteh.png' },
-      { url: '/esteh.png', sizes: '32x32', type: 'image/png' },
-      { url: '/esteh.png', sizes: '16x16', type: 'image/png' },
-    ],
+    icon: '/esteh.png',
     shortcut: '/esteh.png',
     apple: '/esteh.png',
   },
@@ -35,7 +31,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/esteh.png" type="image/png" />
+        <link rel="icon" href="/esteh.png" type="image/png" sizes="any" />
+        <link rel="apple-touch-icon" href="/esteh.png" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

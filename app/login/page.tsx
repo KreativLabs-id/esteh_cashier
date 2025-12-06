@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CupSoda, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
+import Image from 'next/image';
 import { authenticate } from './actions';
 
 export default function LoginPage() {
@@ -37,8 +38,15 @@ export default function LoginPage() {
 
             <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-md p-8 sm:p-10 space-y-8 border border-white/20 relative z-10">
                 <div className="text-center space-y-3">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-linear-to-br from-primary-400 to-primary-600 text-white mb-4 shadow-lg shadow-primary-500/30">
-                        <img src="/esteh.png" alt="Teh Barudak Indonesia" className="w-12 h-12 object-contain" />
+                    <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-white mb-4 shadow-lg border-4 border-primary-100 overflow-hidden">
+                        <Image 
+                            src="/esteh.png" 
+                            alt="Teh Barudak Indonesia" 
+                            width={64} 
+                            height={64} 
+                            className="object-contain"
+                            priority
+                        />
                     </div>
                     <h1 className="text-3xl sm:text-4xl font-bold text-secondary-900 tracking-tight">Teh Barudak</h1>
                     <p className="text-secondary-500 text-sm">Masuk ke akun Anda</p>
